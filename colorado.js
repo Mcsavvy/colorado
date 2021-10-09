@@ -63,20 +63,37 @@ function generateAbbr(name) {
         return consonants.slice(0,1) + consonants.slice(-1)
     } return str.slice(0,1) + str.slice(-1)
 }
+/**
+ * 
+ * @param {Object} props
+ */
+
 
 var rules = {
-    /*
-    each rule should be a function which would be passed two parameters
-    @param {string} abbr: the abbreviated name of the color
-    @param {string} color: the color's value (this can be hex, rgba, etc...)
-
-    each rule is expected to return a css block using <abbr> as css class name, e.g
-    .<abbr> {
-        css goes here...
-    }
+    /**
+     * @param {string} abbr: the abbreviated name of the color
+     * @param {string} color: the color's value (this can be hex, rgba, etc...)
+     * @returns {String}: the returned string must be formatted as a CSS block, eg:
+     <span>
+        .abbr {
+            color: color
+            font-weight: 20px
+        }
+     </span>
     */
     backgroundColor: (abbr, color) => {
         return `.${colorado.abbr.backgroundColor}-${abbr} {background-color:${color}}`},
+    /**
+     * @param {string} abbr: the abbreviated name of the color
+     * @param {string} color: the color's value (this can be hex, rgba, etc...)
+     * @returns {String}: the returned string must be formatted as a CSS block, eg:
+     <span>
+        .abbr {
+            color: color
+            font-weight: 20px
+        }
+     </span>
+    */
     color: (abbr, color) => {
         return `.${abbr} {color:${color}}`},
 }
@@ -143,7 +160,7 @@ class color {
     }
 
     /**
-     * @type {Array}
+     * @type {[...Function(abbr, color)]}
      */
     get rules(){return this._rules}
 
@@ -166,7 +183,7 @@ class mode {
     /**
      * @param {String} name
      * @param {String} abbr
-     * @param {Array} colors
+     * @param {[color]} colors
      * @param {mode} reverse
      */
     constructor(name,abbr,colors,reverse){
@@ -185,11 +202,7 @@ class mode {
      * @param {String} value
      * @returns {void}
     */
-    setVar(target,abbr, value){
-        var A
-        target.style.setProperty(`--${abbr}`, value)
-        target.style.setProperty(`--${this.abbr}-${abbr}`, value)
-    }
+    setVar(target,abbr, value){target.style.setProperty(`--${abbr}`, value)}
 
     /**
      * @param {Element} target
@@ -203,6 +216,7 @@ class mode {
         var c
         for (c of this.colors) {
             this.setVar(target, c.abbr, c.value)
+            this.setVar(target, `${this.abbr}-${c.abbr}`, c.value)
         }
         if (this.reverse){
             return new Promise((resolve, reject) => {
@@ -227,7 +241,8 @@ class mode {
          */
         var c
         for (c of this.colors) {
-             this.setVar(target, c.abbr, c.value)
+             this.setVar(target, `${this.abbr}-${c.abbr}`, c.value)
+             this.setVar(target, `${reversedAbbr}-${c.abbr}`, c.value)
         }
     }
     
@@ -281,10 +296,9 @@ class mode {
      */
     set colors(value){
         if (!value instanceof Array){throw TypeError('mode colors should be an Array')}
-        else{
-            for (const i of value) {
-                if (!i instanceof color){ValueError('colors contains a non-color object')}
-            }
+        if (!value.length){throw Error('mode colors should contain at least one color')}
+        for (const i of value) {
+            if (!i instanceof color){ValueError('mode colors contains a non-color object')}
         }
         this._colors = value
     }
@@ -293,11 +307,57 @@ class mode {
 
 
 class theme{
-    constructor({modes=[],rules=[],reversedAbbr=globalThis.colorado.abbr.reversed}={}){
+    /**
+     * 
+     * @param {[...mode]} modes: an array of modes
+     * @param {[...rule]} rules: an array of rules
+     * @returns {theme}
+     */
+    constructor(
+        modes=[],
+        rules=[rules.backgroundColor, rules.color],
+        reversedAbbr=globalThis.colorado.abbr.reversed){
         this.modes = modes
         this.revr = reversedAbbr
         this.rules = rules
     }
 
+    /**
+     * @type {[...mode]}
+     */
+    get modes(){return this._modes}
+
+    /**
+     * @param {[...mode]} value
+     */
+    set modes(value){
+        if (!value instanceof Array){
+            throw TypeError("theme mode must be an array")
+        }; if (!value.length){throw Error('theme modes should contain at least one mode')}; for (var m of value){
+            if (!m instanceof mode){
+                throw TypeError("theme mode contains non-mode objects")
+            }
+        }
+    }
+
+    /**
+     * @type {[...function(abbr, color)]}
+     */
+     get rules(){return this._rules}
+
+     /**
+      * @param {[...mode]} value
+      */
+     set rules(value){
+         if (!value instanceof Array){
+             throw TypeError("theme rules must be an array")
+         };for (var m of value){
+             if (!m instanceof Function){
+                 throw TypeError("theme rules contains non-function objects")
+             }
+         }
+         this._rules = value
+     }
+    
 
 }
