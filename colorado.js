@@ -4,25 +4,16 @@ This is by far the easiest theming tool which gives you full control
 over the colors on your page in an exciting way
 
 This tool makes use of jQuery if available, if not, it sticks to vanilla js
-This tool is built firmly around css variables::
 
-CSS VARIABLES
-=============
-set a variable inside a css block, e.g:
+important classes and functions::
 
-body {
-    --color: #ea22f4
-    --height: 5rem
-}
+ function colorado(?node, ?theme)
 
-then you can refer to the variable in any css block using "var", eg:
+ class theme([array[mode]] modes, [array[rule]] rules, [string] reversedAbbr)
 
-ul {
-    background: var(--color)
-    min-height: var(--height)
-}
+ class mode([string] name, [string] abbr, [array[color]] colors)
 
-
+ class color([string] abbr, [Object] attrs)
 
 */
 "use strict";
@@ -37,6 +28,22 @@ globalThis.colorado = {
 var RequiredParameter = (name) => {throw `ParameterError: "${name}" is a required parameter`}
 var ValueError = (msg) => {throw `ValueError: ${msg}`}
 
+/**
+ * @param {String} string 
+ * @returns {String}
+ */
+function uuidv4(string) {
+    return string.replace(/[xy]/g, function(c) {
+      var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
+/**
+ * 
+ * @param {String} name 
+ * @returns {String}
+ */
 function generateAbbr(name) {
     // for generating abbreviations internally
     if (!name){
@@ -76,47 +83,221 @@ var rules = {
 
 
 class color {
+    /**
+    * @param {String} name: the name of the color
+    * @param {String} abbr: the abbreviated name of the color (if none is specified, it is generated from the color name)
+    * @param {String} value: the color value, this can be hex, rgba, etc...
+    * @param {Array} rules: array of functions, each function in the array is passed two parameters - abbr and color 
+    */
     constructor({name,abbr,value,rules=[]}={}){
         var attrs = {name,value}
         for (let key in attrs){
             attrs[key]?null:RequiredParameter(key)
         }
-        this._name = attrs.name
-        this._abbr = abbr || generateAbbr(attrs.name)
-        this._val = attrs.value
-        this._rules = rules
+        this.name = attrs.name
+        this.abbr = abbr
+        this.value = attrs.value
+        this.rules = rules
     }
 
+    /**
+     * @type {String}
+     */
     get name(){return this._name}
+
+    /**
+     * @param {String} value
+     */
     set name(value){
-        if (typeof value !== 'string'){
-            throw TypeError('color name should be a string')
-        } else if (!value.length){
-            throw Error('color name cannot be an empty string')
+        if (typeof value !== 'string'){throw TypeError('color name should be a string')}
+        else if (!value.length){ValueError('color name cannot be an empty string')}
+        this._name = value}
+    
+    /**
+     * @type {String}
+     */
+    get abbr(){return this._abbr}
+
+    /**
+     * @param {String} value
+     */
+    set abbr(value){
+        var val = value?value:generateAbbr(this.abbr)
+        if (typeof val !== 'string'){throw TypeError('color abbr should be a string')}
+        else if (!val.length){ValueError("color abbr cannot be an empty string")}
+        this._abbr = val
+    }
+
+    /**
+     * @type {String}
+     */
+    get value(){return this._val}
+
+    /**
+     * @param {String} value
+     */
+    set value(value){
+        if (typeof value !== 'string'){throw TypeError('color value should be a string')}
+        else if (!val.length){ValueError("color value cannot be an empty string")}
+        this._val = val
+    }
+
+    /**
+     * @type {Array}
+     */
+    get rules(){return this._rules}
+
+    /**
+     * @param {Array} value: array of functions
+     */
+    set rules(value){
+        if (!value instanceof Array){throw TypeError('color rules should be an Array')}
+        else{
+            for (const i of value) {
+                if (typeof i !== 'function'){ValueError('rules contains a non-function object')}
+            }
         }
+        this._rules = value
     }
 }
 
 
 class mode {
-    constructor({name,abbr,colors,reverse}={}){
+    /**
+     * @param {String} name
+     * @param {String} abbr
+     * @param {Array} colors
+     * @param {mode} reverse
+     */
+    constructor(name,abbr,colors,reverse){
         name?null:RequiredParameter('name')
         colors?null:RequiredParameter('colors')
         if (!Array.isArray(colors)){throw TypeError("'colors' should be an array of color")}
-        this._name = name
-        this._colors = colors
-        this._abbr = abbr || generateAbbr(name)
-        reverse? this._revr = reverse: null
+        this.name = name
+        this.colors = colors
+        this.abbr = abbr || generateAbbr(name)
+        reverse? this.revr = reverse: null
     }
 
-    set(abbr, color){
-        abbr?null:RequiredParameter('abbr')
-        color?null:RequiredParameter('color')
+    /**
+     * @param {Element} target
+     * @param {String} abbr
+     * @param {String} value
+     * @returns {void}
+    */
+    setVar(target,abbr, value){
+        var A
+        target.style.setProperty(`--${abbr}`, value)
+        target.style.setProperty(`--${this.abbr}-${abbr}`, value)
     }
+
+    /**
+     * @param {Element} target
+     * @param {String} reversedAbbr
+     * @returns {Promise|undefined}
+     * */
+    load(target, reversedAbbr){
+        /**
+         * @type {color} c
+         */
+        var c
+        for (c of this.colors) {
+            this.setVar(target, c.abbr, c.value)
+        }
+        if (this.reverse){
+            return new Promise((resolve, reject) => {
+                try {
+                    this.reverse.unload(target, reversedAbbr)
+                    resolve((this.name.search(/(?:mode|theme)$/)==-1)?`${this.name}-mode`:this.name)
+                } catch (err){
+                    reject(err)
+                }
+            })
+        } return undefined
+    }
+
+    /**
+     * @param {Element} target
+     * @param {String} reversedAbbr
+     * @returns {Promise|undefined}
+     * */
+    unload(target, reversedAbbr){
+        /**
+         * @type {color} c
+         */
+        var c
+        for (c of this.colors) {
+             this.setVar(target, c.abbr, c.value)
+        }
+    }
+    
+    /**
+     * @type {String}
+     */
+    get name(){return this._name}
+
+    /**
+     * @param {String} value
+     */
+    set name(value){
+        if (typeof value !== 'string'){throw TypeError('mode name should be a string')}
+        else if (!value.length){ValueError('mode name cannot be an empty string')}
+        this._name = value}
+
+    /**
+     * @type {String}
+     */
+    get abbr(){return this._abbr}
+
+    /**
+     * @param {String} value
+     */
+    set abbr(value){
+        var val = value?value:generateAbbr(this.abbr)
+        if (typeof val !== 'string'){throw TypeError('mode abbr should be a string')}
+        else if (!val.length){ValueError("mode abbr cannot be an empty string")}
+        this._abbr = val
+    }
+
+    /**
+     * @type {mode | undefined}
+     */
+    get reverse(){return this._revr}
+
+    /**
+     * @param {mode | undefined} value
+     */
+    set reverse(value){
+        if (!value instanceof mode){throw TypeError('mode reverse should be another mode')}
+        this._revr = value
+        value.reverse = this
+    }
+
+    /**@type {Array} */
+    get colors(){return this._colors}
+
+    /**
+     * @param {Array} value
+     */
+    set colors(value){
+        if (!value instanceof Array){throw TypeError('mode colors should be an Array')}
+        else{
+            for (const i of value) {
+                if (!i instanceof color){ValueError('colors contains a non-color object')}
+            }
+        }
+        this._colors = value
+    }
+
 }
 
 
-console.log(generateAbbr('dark'))
- 
-var nC = new color({name:'primary'})
-console.log(nC)
+class theme{
+    constructor({modes=[],rules=[],reversedAbbr=globalThis.colorado.abbr.reversed}={}){
+        this.modes = modes
+        this.revr = reversedAbbr
+        this.rules = rules
+    }
+
+
+}
