@@ -25,10 +25,10 @@ globalThis.colorado = {
   },
 };
 
-var RequiredParameter = (name) => {
+const RequiredParameter = (name) => {
   throw `ParameterError: "${name}" is a required parameter`;
 };
-var ValueError = (msg) => {
+const ValueError = (msg) => {
   throw `ValueError: ${msg}`;
 };
 
