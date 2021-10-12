@@ -9,14 +9,13 @@ var colorado = {
 };
 
 class hasRule {
-  /*** @type {Array<rule>}*/
+  /**@type {Array<rule>}*/
   get rules() { return this._rules; }
 
-  /***
-   * @param {Array<rule>} value
-   * @returns {theme}*/
+  /***@param {Array<rule>} value */
   set rules(value) {
     if (!isArrayOfOnly(rule, value)) { 
+      console.log(value);
       throw TypeError(`[${this.constructor.name}] rules must be an Array containing only rule objects`); }
     this._rules = value.length ? unique(value) : []; return this;
   }
@@ -41,7 +40,7 @@ class hasNameAbbrRule extends hasRule {
   /** @param {String} value*/
   set abbr(value) {
     var val = value ? value : generateAbbr(this.name);
-    if(!isNonEmmptyString(value)) ValueError(this.constructor.name, "abbr should be a non-empty string");
+    if(!isNonEmmptyString(val)) ValueError(this.constructor.name, "abbr should be a non-empty string");
     this._abbr = val; return this;
   }
 }
@@ -66,7 +65,7 @@ function unique(arr) {
  * @param {string} caller 
  * @param {Object<string,*>} pairs
  * @return {RequiredParameter}*/
-const RequiredParameter = (caller, pairs = {}) => {
+var RequiredParameter = (caller, pairs = {}) => {
   var arr = [];
   for (var key in pairs) {
     if (pairs[key] == null) { arr.push(key); }
@@ -82,7 +81,7 @@ const RequiredParameter = (caller, pairs = {}) => {
 /**
  * @param {string} caller
  * @param {string} msg*/
-const ValueError = (caller, msg) => {
+var ValueError = (caller, msg) => {
   throw `ValueError: [${caller}] ${msg}`;
 };
 
@@ -116,6 +115,7 @@ const mergeArrays = (...arrays) => {
   return array;
 };
 
+/**@returns {Object<string,*>}*/
 const mergeObjects = (...objects) => Object.assign({}, ...objects);
 
 const zip = (...arrays) => {
@@ -125,6 +125,7 @@ const zip = (...arrays) => {
 
 /**@param {string} value */
 const isNonEmmptyString = (value) =>
+  value != null &&
   (typeof value.valueOf() === 'string') &&
   value.length;
 
@@ -233,12 +234,21 @@ class color extends hasNameAbbrRule {
 
   /**@type {{classes:Array<string>,styles:Array<string>,
    * variables:Object<string,string>, style:string,vars:string}}*/
-  get css() {
+  get css() {return color.makeCss({
+      rules:this.rules,abbr:this.abbr,value:this.value
+    });}
+
+  /**
+   * @param {{rules:Array<rule>,abbr:string,value:string,prefix:string,pretty:boolean}}
+   * @returns {{classes:Array<string>,styles:Array<string>,
+   * variables:Object<string,string>, style:string,vars:string}}
+   */
+  static makeCss({rules,abbr,value,prefix='',pretty=true}){
     var classes = [], styles = [], variables = {};
-    variables[this.abbr] = this.value;
-    for (var rule of this.rules) {
-      var rclass = rule.className.replace('<abbr>', this.abbr);
-      styles.push(rule.render(this.abbr, this.value));
+    variables[abbr] = value;
+    for (var rule of rules) {
+      var rclass = rule.className.replace('<abbr>', abbr);
+      styles.push(rule.render(abbr, value, {prefix,pretty}));
       classes.push(rclass);
     } return { classes, styles, variables, style: styles.join('\n'), vars: Object.keys(variables) };
   }
@@ -266,7 +276,7 @@ class mode extends hasNameAbbrRule {
    * @param {mode} reverse
    * @param {Array<rule>} rules
    * @param {string} reversedAbbr*/
-  constructor(name, colors, { reverse, rules, abbr } = {}) {
+  constructor(name, colors, { reverse, rules=[], abbr } = {}) {
     RequiredParameter('mode', { name, colors });
     super();
     this.name = name;
@@ -299,47 +309,67 @@ class mode extends hasNameAbbrRule {
     this._rabbr = value; return this;
   }
 
-  /**@return {true|false|null} */
-  isLoadedactive(checkreverse = true) {
-    if (!this.flippable()) { return this._isLoaded ? true : null; }
-    if (this._isLoaded) { return true; }
-    if (this.flippable() && checkreverse) {
-      return this.reverse.active(checkreverse = false) ? false : null;
-    } return null;
+  /**@return {Boolean} */
+  get isLoaded() {return this._isLoaded;}
+
+  set isLoaded(value){
+    value = Boolean(value);
+    this.isActive = value;
+    this._isLoaded = value;this.reverse._isLoaded = !value;
   }
 
   /**@type {boolean} */
   get isActive() {return this.flippable()?this._isActive:true;}
 
   set isActive(value){
-    if (typeof value.valueOf() !== 'boolean') ValueError('mode', 'isActive expects a boolean');
+    value = Boolean(value);
     if (!this.flippable()) return;
     this._isActive = value;this.reverse._isActive = !value;
+    return this;
   }
 
-  /**@type {{classes:Array<string>,styles:Array<string>,
-   * variables:Object<string,string>, style:string,vars:string}}*/
+  /**
+   * @type {{classes:Array<string>,styles:Array<string>,
+   * variables:Object<string,string>, style:string,vars:string}}
+   */
   get css() {
-    const classes = [], styles = [], variables = {};
-    for (var c of this.colors) {
-      variables[`--${this.abbr}-${c.abbr}`] = c.value;
-      for (var r of unique(this.rules.concat(c.rules))) {
-        var rclass = r.className.replace('<abbr>', c.abbr);
-        styles.push(r.render(c.abbr, c.value, { prefix: this.abbr + '-' }));
-        classes.push(`${this.abbr}-${rclass}`);
-        const active = this.active(true);
-        if (active === true || active === null) {
-          variables[`--${c.abbr}`] = c.value;
-          styles.push(r.render(c.abbr, c.value));
-          classes.push(rclass);
-        } else if (active === false) {
-          variables[`--${this.rabbr}-${c.abbr}`] = c.value;
-          styles.push(r.render(c.abbr, c.value, { prefix: this.rabbr + '-' }));
-          classes.push(`${this.rabbr}-${rclass}`);
+    return mode.makeCss({
+      colors:this.colors,
+      active:this.isActive,
+      rules:this.rules,
+      abbr:this.abbr,
+      rabbr:this.rabbr
+    });
+  }
+
+  /**
+   * @param {{colors:Array<color>,rules:Array<rule>,abbr:string,
+   * rabbr:string,active:boolean,pretty:boolean}} props
+   * @returns {{classes:Array<string>,styles:Array<string>,
+   * variables:Object<string,string>, style:string,vars:string}}
+   */
+  static makeCss({colors,rules,abbr,rabbr,active,pretty}={}){
+      var classes = [], styles = [], variables = {};
+      for (var c of colors) {
+        variables[`--${abbr}-${c.abbr}`] = c.value;
+        for (var r of unique(rules.concat(c.rules))) {
+          var rclass = r.className.replace('<abbr>', c.abbr);
+          styles.push(r.render(c.abbr, c.value, { prefix: abbr + '-' }));
+          classes.push(`${abbr}-${rclass}`);
+          if (active) {
+            variables[`--${c.abbr}`] = c.value;
+            styles.push(r.render(c.abbr, c.value));
+            classes.push(rclass);
+          } else {
+            variables[`--${rabbr}-${c.abbr}`] = c.value;
+            styles.push(r.render(c.abbr, c.value, { prefix: rabbr + '-' }));
+            classes.push(`${rabbr}-${rclass}`);
+          }
         }
       }
-    }
-    return { classes, styles, variables, style: styles.join('\n'), vars: Object.keys(variables) };
+      classes = unique(classes); styles = unique(styles);
+      return { classes, styles, variables, style: styles.join('\n'), vars: Object.keys(variables) };
+    
   }
 
   /**
@@ -351,7 +381,7 @@ class mode extends hasNameAbbrRule {
       this.setVar(target, c.abbr, c.value);
       this.setVar(target, `${this.abbr}-${c.abbr}`, c.value);
     }
-    this._isLoaded = true;
+    this.isLoaded = true;
     if (this.flippable()) {
       return new Promise((resolve, reject) => {
         try {
@@ -372,7 +402,7 @@ class mode extends hasNameAbbrRule {
     for (var c of this.colors) {
       this.setVar(target, `${this.abbr}-${c.abbr}`, c.value);
       this.setVar(target, `${this.rabbr}-${c.abbr}`, c.value);
-    } this._isLoaded = null; return this;
+    } this.isLoaded = false; return this;
   }
 
   /**@type {mode} */
@@ -382,8 +412,8 @@ class mode extends hasNameAbbrRule {
     if (!(value instanceof mode)) { throw TypeError('[mode] reverse should be another mode'); }
     if (value === this){ValueError('mode','cannot use itself as reverse');}
     this._revr = value;
-    if (value._revr !== this) { value._revr = this; }
-    value.rabbr = this.rabbr; return this;
+    if (value._revr !== this) value._revr = this;
+    value.rabbr = this.rabbr;this.isActive = true;return true;
   }
 
   /**@type {Array<color>} */
@@ -402,45 +432,38 @@ class theme extends hasRule {
    * @param {mode|string} currentMode: the current mode to set
    * @param {{reversedAbbr:string,rules:Array<rule>}} param2
    * @returns {theme}*/
-  constructor(modes, currentMode, { reversedAbbr, rules = [] } = {}) {
-    RequiredParameter('theme', { modes, currentMode });
+  constructor(modes, currentmode, { reversedAbbr, rules = [] } = {}) {
+    RequiredParameter('theme', { modes, currentmode });
     super();
-    this.__uuid = uuidv4('colorado-xyxyxy-theme-xyxyxy');
-    this.currentMode = currentMode;
+    this.__uuid = uuidv4('cxy-lxy-oxy-rxy-axy-dxy-oxy');
     this.modes = modes;
+    this.currentmode = currentmode;
     this.revr = reversedAbbr || colorado.abbr.reversed;
     this.rules = rules;
   }
 
-  /**@type {Array<mode>} */
-  get allModes(){
-    return unique(this._modes.flatMap(item => item.flippable()?[item,item.reverse]:[item]));
-  }
-
   /**@type {mode} */
-  get currentMode(){return this._current;}
+  get currentmode(){return this._current;}
 
-  set currentMode(value){
+  set currentmode(value){
     if (
-      !isStringOfAtLeast(2,value) ||
-      !(value instanceof mode)
+      !(isStringOfAtLeast(2,value) ||
+      value instanceof mode)
     ) ValueError('theme', 'currentMode expects a mode or it\'s name');
     if (value instanceof mode){
-
+      if (this._modes.indexOf(value) == -1) ValueError('theme', 'currentmode is not in modes');
+      this._current = value;
+    } else {
+      var choices = this.modes.filter(item => item.name === value);
+      if (!choices.length) ValueError('theme', 'currentmode is not the name of any mode in modes');
+      this._current = choices[0]
     }
   }
 
 
   /**@property {Array<mode>}*/
   get modes() {
-    /** @type {Array<mode>}*/
-    var arr = [];
-    /** @type {Array<mode>}*/
-    var flippable = [];
-    this._modes.forEach(m => m.flippable()?flippable.push(m):arr.push(m));
-    /** @type {Array<mode>}*/
-    var reverses = flippable.map(m => m.reverse);
-    return arr.concat(flippable.filter(m => reverses.indexOf(m) === -1));
+    return unique(this._modes.flatMap(item => item.flippable()?[item,item.reverse]:[item]));
   }
 
   /**@param {Array<mode>} value*/
@@ -456,22 +479,48 @@ class theme extends hasRule {
   set revr(value) {
     if (!isNonEmmptyString(value)) { ValueError('theme', 'revr should be a non-empty string'); }
     if (value.search(/^[a-z][a-z_]*$/i) === -1) { ValueError('theme','revr should only contains alphabets and underscores'); }
-    this.modes.forEach(item => item.rabbr = value); this._revr = value; return this;
+    this._revr = value; return this;
   }
 
-  /**@type {{classes:Array<string>,styles:Array<string>,
-   * variables:Object<string,string>, style:string,vars:string}}*/
+  /**
+   * @type {{classes:Array<string>,styles:Array<string>,
+   * variables:Object<string,string>, style:string,vars:string}}
+   */
   get css() {
     var classes=[],styles=[],variables={};
     for (var m of this.modes){
-      var css = m.css;
+      var css = mode.makeCss({
+        colors:m.colors,
+        rules:this.rules.concat(m.rules),
+        abbr:m.abbr,
+        rabbr:this.revr,
+        active:m.isActive,
+        pretty:true
+      });
       classes.push(...css.classes);
-      styles.push(...css.styles)
+      styles.push(css.style);
+      Object.assign(variables, css.variables);
+      if (m.flippable()){
+        var r = m.reverse,
+            rcss = mode.makeCss({
+              colors:r.colors,
+              rules:this.rules.concat(r.rules),
+              abbr:r.abbr,
+              rabbr:this.revr,
+              active:r.isActive,
+              pretty:true
+            });
+        classes.push(...rcss.classes);
+        styles.push(rcss.style);
+        Object.assign(variables, rcss.variables);
+      }
     }
-
+    classes = unique(classes); styles = unique(styles);
+    return { classes, styles, variables, style: styles.join('\n'), vars: Object.keys(variables) }
   }
 
-  insertRules() {
+  insertStyleSheet() {
+    
 
   }
 }
@@ -522,12 +571,12 @@ const card = new rule('<abbr>-card', {
 
 // MODE DOC
 const lightblue = new color('blue', 'lightblue');
-const darkblue = new color('blue', 'lightblue');
-const lightmode = new mode('light', [lightblue], { rules: [card] });
-const darkmode = new mode('dark', [darkblue], { rules: [card], reverse: lightmode });
-// console.log(lightmode.css.classes);
-// console.log(darkmode.css.classes);
+const darkblue = new color('blue', 'darkblue');
+const lightmode = new mode('light', [lightblue]);
+const darkmode = new mode('dark', [darkblue], {reverse: lightmode });
+// console.log(darkmode.css.variables);
+// console.log(lightmode.css.variables);
 // console.log(darkmode.css.vars);
-// console.log(lightmode.css.style);
-const main = new theme([lightmode,darkmode],'dark');
-console.log(main.allModes);
+// console.log(darkmode.css.style);
+const main = new theme([lightmode,darkmode],'dark', {rules:[card]});
+console.log(main.__uuid);
