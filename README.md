@@ -1,10 +1,10 @@
 # COLORADO
 
-## CSS IN JS
+## Goodbye to CSS IN JS?
 
 ### with the recent advancements in web development technologies, it has become kinda obsolate to use the **dang 'ol stylesheet** -- _well that is if you don't want to be left behind..._
 
-    Different Libraries and Frameworks  like **React**, **VUE**, **Angular** and  **Emotion**  have greatly simplified the styling process for us but sometimes we might not need that much  configuration and setup, this is the point where you need to consider **colorado**
+Different Libraries and Frameworks  like **React**, **VUE**, **Angular** and  **Emotion**  have greatly simplified the styling process for us but sometimes we might not need that much  configuration and setup, this is the point where you need to consider **colorado**
 
 ## HOW TO CLONE PROJECT
 
@@ -107,8 +107,8 @@ component has 4 parameters
 3. c {array of string} [Optional]: ...
 4. d {boolean} [Optional]: ...
 `
-// if the type is an array an the parameter is required, the array must contain at least one item
-// if the type is an array an the parameter is optional, the array can be empty
+// if the type is an array and the parameter is required, the array must contain at least one item
+// if the type is an array and the parameter is optional, the array can be empty
 
 
 // Raises an error cos b is empty
@@ -128,27 +128,31 @@ const comp = component('A', ['B'], {'c':[],d:true})
 
 ### **To build this, we first have to break it down** 📜
 
-### rules are very similar to css rulesets or color templates, they dynamically change based on what they render and like most colorado components, they are 100% reusable
+You want to style, use CSS, want to style fast? Use rules
 
-> **rule accepts two required arguments**
+Call them css rulesets, called them color templates. Rule dynamically change based on what they render and like most colorado components, they are 100% reusable
 
-1. **className {`string`} [Required]: the css class-name of the rule, with `<abbr>` in it.**
-2. **props {`object`} [Required]: a css properties with key=value pairs, the values can contain `<abbr>` and `<color>`**
+### rule accepts two required arguments
+
+1. className {`string`} [Required]: a css classname for the rule, with `<abbr>` in it.
+2. props {`object`} [Required]: a css properties with `key:value` pairs. Each value can optionally  contain `<abbr>` or `<color>`
 
 ```javascript
+const backgroundColor = new rule(
+    '<abbr>-bg',
+    { 'background-color': '<attr><color>' }
+)
+
+
 /*
-* you want to style your page? use css.
-* you want to style fast? use rules.
+we just set the classname to "<abbr>-bg".
+[this would be changed when the rule is rendered]
+[it would be changed to the first value we pass to render]
+
+we added only one key:value pair "background-color:<abbr>-<color>"
+[abbr would be replace with the first value we pass to render]
+[color would be replaced with the second value we pass to render]
 */
-
-const backgroundColor = new rule('<abbr>-bg',{'background-color':'<attr><color>'})
-
-
-// this is the most basic rule we could create
-// rules allow you to render them using custom value
-
-// first value passed to render would be used to replace "<abbr>"
-// the second woould be used to replace "<color>"
 
 backgroundColor.render("dark", "blue")
 ```
@@ -157,18 +161,23 @@ backgroundColor.render("dark", "blue")
 .dark-bg {
     background-color: darkblue
 }
+
+/* This was EASY right? */
 ```
 
 ```javascript
 
 // multiple css properties can be specified - the sky is your limit
 
-const card = new rule('<abbr>-card', {
+const card = new rule(
+    '<abbr>-card',
+    {
     'background-color': '<color>',
     'border-radius': '1rem',
     'font-size': '1.5rem',
     'padding':'5px'
-})
+    }
+)
 
 > card.render('dark', '#00000')
 ```
@@ -308,7 +317,21 @@ const darkmode = new mode('dark', [darkblue], { rules:[card], reverse:lightmode 
 
 **Two heads are better than one - _sometimes_** 👥
 
-Just as the name suggests, a `duo` is A PAIR. Duos are used to pair up different modes especially in a situation where you have different modes with the same name. Now you can have different darkmodes active on the same page without every bothering about a clash. There'll be no mistakes.
+### Just as the name suggests, a `duo` is A PAIR. Duos are used to pair up different modes especially in a situation where you have different modes with the same name. Now you can have different darkmodes active on the same page without every bothering about a clash. There'll be no mistakes
+
+> modes take two required arguments and three optional arguments at initialization
+
+1. **name {`string`} [Required]: name of the mode**
+2. **colors {`array` of `color`} [Required]: colors that are part of this colorscheme**
+3. **abbr {`string`} [Optional]: abbreviated name of this mode e.g `classicdark -> c-dk`**
+4. **rules {`array` of `rule`} [Optional]: rules that would be used to render this mode**
+5. **reverse {`mode`} [Optional]: another mode representing the direct reverse of this mode e.g `light -> dark`**
+
+> modes intuitively know the following
+
+* **the css classes they would be bound to `mode.css.classes`**
+* **how they would render on stylesheets `mode.css.style`**
+* **the css variables they would create `mode.css.vars`**
 
     THEMES
     ˈ   ˈ
