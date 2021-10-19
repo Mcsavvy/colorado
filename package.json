@@ -2,7 +2,8 @@
   "name": "colorado",
   "version": "1.0.0",
   "description": "",
-  "main": "colorado.js",
+  "main": "lib/main.js",
+  "type": "module",
   "scripts": {
     "test": "jest",
     "start": "nodemon /home/chidalu/Documents/Colorado/colorado/colorado.js"
@@ -14,11 +15,12 @@
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/Chidalu567/colorado/issues"
+    "url": "https://github.com/mcsavvy/colorado/issues"
   },
-  "homepage": "https://github.com/Chidalu567/colorado#readme",
+  "homepage": "https://github.com/mcsavvy/colorado#readme",
   "dependencies": {
     "jest": "^27.2.5",
+    "jsdom": "^18.0.0",
     "nodemon": "^2.0.13"
   }
 }
