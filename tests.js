@@ -76,5 +76,7 @@ import {is_not} from './lib/selector.js';
 // // all other selectors can be mixed
 // var r = new rule('<abbr/>card:active > ul.menu > li.menu-item:first-child', {});
 
+
 // // selector can be seperated by commas
-// var r = new rule('<abbr/>card, #submitBtn, span::after', {});
+var r = new rule('<abbr/>card, #submitBtn, span::after', {});
+console.log(r.selectors('dark'));

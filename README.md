@@ -226,8 +226,8 @@ console.log(
 /* card */
 .dark-card {
     background-color: black;
-    font-size: <size>;
-    text-align: <text>
+    font-size: <size/>;
+    text-align: <text/>
 }
 
 /* centerCard */
