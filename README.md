@@ -132,29 +132,29 @@ You want to style, use CSS, want to style fast? Use rules
 
 Call them css rulesets, called them color templates. Rule dynamically change based on what they render and like most colorado components, they are 100% reusable
 
-### rule accepts two required arguments
+### Arguments
 
-1. className {`string`} [Required]: a css classname for the rule, with `<abbr>` in it.
-2. props {`object`} [Required]: a css properties with `key:value` pairs. Each value can optionally  contain `<abbr>` or `<color>`
+1. selector {`string`} [Required]: a valid css-selector for the rule, with `<abbr/>` in it. _Notice the forward-slash before the closing angle bracket_.
+2. props {`object`} [Required]: an `Object` containing `property:value` pairs. Each value may contain `<abbr/>`, `<color/>` or as many [template variables](#dynamic-css-ruling).
+
+### Usage
 
 ```javascript
 const backgroundColor = new rule(
-    '<abbr>-bg',
-    { 'background-color': '<attr><color>' }
-)
+    '<abbr/>-bg', {
+        'background-color': '<abbr/><color/>'
+    });
 
+`
+we set the selector to "<abbr/>-bg"
+then we added only one property:value pair "background-color:<abbr/>-<color/>"
 
-/*
-we just set the classname to "<abbr>-bg".
-[this would be changed when the rule is rendered]
-[it would be changed to the first value we pass to render]
+NOTE: <abbr/> would be replace with the first value we pass to render
+                          &
+    <color/> would be replaced with the second value we pass to render
+`
 
-we added only one key:value pair "background-color:<abbr>-<color>"
-[abbr would be replace with the first value we pass to render]
-[color would be replaced with the second value we pass to render]
-*/
-
-backgroundColor.render("dark", "blue")
+console.log(backgroundColor.render("dark", "blue"));
 ```
 
 ```css
@@ -162,33 +162,182 @@ backgroundColor.render("dark", "blue")
     background-color: darkblue
 }
 
-/* This was EASY right? */
+/* This was MAGICALLY EASY right? */
 ```
 
+### Multiple CSS Properties
+
+You can specify an **unlimited** number of CSS properties at creation. The rendering works the same.
+
 ```javascript
-
-// multiple css properties can be specified - the sky is your limit
-
 const card = new rule(
-    '<abbr>-card',
-    {
-    'background-color': '<color>',
-    'border-radius': '1rem',
-    'font-size': '1.5rem',
-    'padding':'5px'
-    }
-)
+    '<abbr/>-card', {
+        'background-color': '<color/>',
+        'border-radius': '1rem',
+        'font-size': '1.5rem',
+        'padding':'5px'
+    });
 
-> card.render('dark', '#00000')
+console.log(card.render('dark', 'black'));
 ```
 
 ```css
 .dark-card {
-    background-color: #00000;
+    background-color: black;
     border-radius: 1rem;
     font-size: 1.5rem;
     padding: 5px
 }
+```
+
+### Dynamic CSS Ruling
+
+In practice, we observed that you tend to repeat yourself a lot of times when handling CSS. It could be that different elements would be using a particular color, font and margin. It could also be that you want an element styled differently when it's in different states e.g `:hover`, `:active`, `:focus`. In each case, you would have to create different css rules for each element or each state.
+
+**Colorado** fully supports the Do-Not-Repeat-Yourself (**DRY**) principle so we added TEMPLATE VARIABLE syntax which allows you to use "placeholder values" to be substituted at your-time.
+
+The syntax is simple, just wrap the placeholder with angle brackets `</>` i.e `<variable-name/>` - _notice the forward-slash before the closing angle bracket_.
+
+So far we already know two template variables; _`<color/>`_ and _`<abbr/>`_, but these are handled automatically when the rule renders, what happens to the others?!
+
+### Rendering With
+
+All rules would appropriately replace  _`<color/>`_ and _`<abbr/>`_ when rendered but ignore all other template variables; this is a feature not a bug. Rules provide a `renderWith` method that returns a clone of the rule that called it, only difference is "All Placeholders Would Now Hold Real Values". This method takes only one argument, which is an `Object` containing `placeholder: value` pairs.
+
+```javascript
+const card = new rule(
+        '<abbr/>-card', {
+        'background-color': '<color/>',
+        'font-size': '<size/>',
+        'text-align':'<text/>',
+    });
+
+const centerCard = card.renderWith({size:'16px',text:'center'});
+const rightCard = card.renderWith({size:'18px',text:'right'});
+
+console.log(
+    card.render('dark', 'black'),
+    centerCard.render('dark', 'black'),
+    rightCard.render('dark', 'black')
+);
+```
+
+```css
+/* card */
+.dark-card {
+    background-color: black;
+    font-size: <size>;
+    text-align: <text>
+}
+
+/* centerCard */
+.dark-card {
+    background-color: black;
+    font-size: 16px;
+    text-align: center
+}
+
+/* rightCard */
+.dark-card {
+    background-color: black;
+    font-size: 18px;
+    text-align: right
+}
+```
+
+### Updating Properties
+
+Rules have an `update` property that can be used to update both it's `selector` and it's `props`.
+This method is so useful because it allows you to chain other methods. This promotes clean & concise code. Watch how it was used alongside `renderWith`.
+
+```javascript
+// first we make a reusable template named node
+var node = new rule(
+    '<abbr/>',
+    {
+        'background-color': '<bg/>',
+        'font-family': '<font/>',
+        'font-size': '<size/>',
+        'color': '<color/>',
+        'padding': '<padding/>',
+        'margin': '<margin/>',
+        'height': '<height/>',
+    }
+);
+var Box = node.renderWith({
+    bg: '<abbr/>blue',
+    font: 'Monospace',
+    size: '14px',
+    padding: '1rem',
+    margin: '2px',
+    height: '5rem',
+}).update.selector(
+    '<abbr/>-box'
+);
+
+
+// then we make a different type of box from Box
+// I tricked it into creating a clone by invoking renderWith :)
+var roundBox = Box.renderWith().update.selector(
+    '<abbr/>-round-box'
+).update.props({
+    'border-color': '<color/>',
+    'height': 'max-content',
+    'border-style':'solid',
+    'border-radius': '20%'
+});
+
+
+console.log(
+    Box.render('light', 'blue'),
+    roundBox.render('light', 'blue')
+);
+```
+
+```css
+.light-box {
+        background-color: lightblue;
+        font-family: Monospace;
+        font-size: 14px;
+        color: blue;
+        padding: 1rem;
+        margin: 2px;
+        height: 5rem
+}
+.light-round-box {
+        background-color: lightblue;
+        font-family: Monospace;
+        font-size: 14px;
+        color: blue;
+        padding: 1rem;
+        margin: 2px;
+        height: max-content;
+        border-color: blue;
+        border-style: solid;
+        border-radius: 20%
+}
+```
+
+`renderWith` creates a new rule and returns it, so I used it to clone `Box`. `update` updates the rule in-place and returns it. Both can be used anywhere a rule is required.
+
+### A Word On CSS Selectors
+
+Rules support a wide-range of css-selector; as long as they contain `<abbr/>`, they are valid. At the same time we have excluded some generic and uncommon css-selectors, selectors like `:not`, `:is` & `*` would not work currently. Use selectors as you would use them in regular stylesheets.
+
+```javascript
+// don't use the * selector.
+var r = new rule('*:active', ...);
+
+// don't use the :not or :is
+// don't forget to add <abbr/>
+var r = new rule(':not(:checked)', ...);
+var r = new rule('input:is(:checked)', ...);
+
+// all other selectors can be mixed
+var r = new rule('<abbr/>card:active > ul.menu > li.menu-item:first-child', ...);
+
+// selector can be seperated by commas
+var r = new rule('<abbr/>card, #submitBtn, span::after', ...);
 ```
 
 ## **Colors**
