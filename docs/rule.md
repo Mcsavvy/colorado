@@ -404,7 +404,6 @@ When you use either a template literal or a function, you have access to `this` 
 ```js
 const btn = new rule('btn', {
     'line-height': '1.5',
-    size: '<size/>', // variable to lookout for
     font: {
         weight: '400',
         size: '<size/>rem',
